@@ -1,0 +1,266 @@
+<html>
+    <link rel="stylesheet" href="./style.css">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Bill Generator</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <!-- Add SheetJS Library (CDN) -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+
+    </head>
+<body>
+  
+    <header>
+        <h6>Prem JI's Bill Generator</h6>
+    </header>
+    <div class="action-buttons">
+        <!-- <button id="uploadExcel">Upload Excel</button>
+        <button id="generateBill">Generate Manual Bill</button>
+        <a href="#" id="download-link" onclick="downloadPDF()">Download as PDF</a> -->
+        <div class="tabs">
+            <button class="tab active" onclick="openTab('upload-excel-wrapper',event)">Upload Excel</button>
+            <button class="tab" onclick="openTab('manual-bill-generation-section',event)">Generate Manual Bill</button>
+        </div>
+    </div>
+ 
+    
+
+    <div class="page-content" style="width: 100%;">
+        <div id="upload-excel-wrapper" class="tab-content active">
+            <div class="custom-upload-section" id="uploadSection">
+                <h2 style="margin-bottom: 16px;">Upload Excel File</h2>
+                <input type="file" id="fileInput" accept=".xlsx, .xls" onchange="uploadExcel(event)">
+            </div>
+            <div class="custom-table-container" id="tableContainer">
+                <h2 style="margin-bottom: 16px;">Excel Data</h2>
+                <div class="align-button">
+                    <div>
+                        <button type="button" onclick="backToUploadExcel()" style="height: 35px;">Back</button>
+                    </div>
+                <div class="filter-container">
+                    <label>Search Client:</label>
+                    <input type="text" id="searchCompany" placeholder="Enter Client name">
+                
+                    <label>Billing From:</label>
+                    <input type="month" id="billingFrom">
+                
+                    <label>Billing To:</label>
+                    <input type="month" id="billingTo">
+                    <button type="button" onclick="downloadAllInvoicesAsZip()" style="margin-bottom: 10px; height: 35px;">Download ALL</button>
+                </div>
+                </div>
+                <div class="custom-table-wrapper">
+                    <table class="custom-table" id="invoiceTable">
+                        <thead>
+                            <tr id="invoiceTableHeader">
+                                <th class="custom-fixed-column">Client Name</th>
+                                <th class="custom-th">Company Name</th>
+                                <th class="custom-th">Company Address</th>
+                                <th class="custom-th">Invoice Date</th>
+                                <th class="custom-th">Client Location</th>
+                                <th class="custom-th">Bank Name</th>
+                                <th class="custom-th">Account No</th>
+                                <th class="custom-th">IFSC Code</th>
+                                <th class="custom-th">PAN No</th>
+                                <th class="custom-th">Updation of E.P.F Record online Cost</th>
+                                <th class="custom-th">Updation of ESIC Record online Cost</th>
+                                <th class="custom-th">Stationery Charge / Postal Charge</th>
+                                <th class="custom-th">OTHER Costing</th>
+                                <th class="custom-th">Signature</th>
+                                <th class="custom-th">Billing Date From</th>
+                                <th class="custom-th">Billing Date To</th>
+                                <th class="custom-action-column">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoiceTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="custom-pagination" id="invoicePagination"></div>
+            </div>
+        </div>
+        <div class="tab-content" id="manual-bill-generation-section" style="width: 100%;">
+          <div class="center-form">
+            <form id="invoiceForm">
+                <div class="toggle-group">
+                    <label>Enable Editing for Company Details?</label>
+                    <div style="display: flex;">
+                        <label><input type="radio" name="enableCompany" value="yes" onclick="toggleCompanyFields(true)"> Yes</label>
+                        <label><input type="radio" name="enableCompany" value="no" onclick="toggleCompanyFields(false)" checked> No</label>
+                    </div>
+                </div>
+            
+                <div>
+                    <label>Company Name:</label>
+                    <input type="text" id="companyName" value="BHOOMIT PANCHOLI" data-required="true" disabled>
+                </div>
+            
+                <div>
+                    <label>Company Address:</label>
+                    <textarea id="companyAddress" data-required="true" disabled>House No. - 7 SHASTRI NAGAR KHEMPURA, UDAIPUR</textarea>
+                </div>
+            
+                <div>
+                    <label>Bank Name:</label>
+                    <input type="text" id="bankName" value="Federal Bank, Udaipur" data-required="true" disabled>
+                </div>
+            
+                <div>
+                    <label>Bank Account No:</label>
+                    <input type="text" id="bankAccountNo" value="15520100044536" data-required="true" disabled>
+                </div>
+            
+                <div>
+                    <label>IFSC Code:</label>
+                    <input type="text" id="bankIfscCode" value="FDRL0001552" data-required="true" disabled>
+                </div>
+            
+                <div>
+                    <label>PAN No:</label>
+                    <input type="text" id="bankPanNo" value="CLNPS1689H" data-required="true" disabled>
+                </div>
+            
+                <div>
+                    <label>Signature:</label>
+                    <input type="text" id="signature" value="BHOOMIT PANCHOLI" data-required="true" disabled>
+                </div>
+            
+                <div>
+                    <label>Invoice Date:</label>
+                    <input type="date" id="invoiceDate" data-required="true">
+                </div>
+            
+                <div>
+                    <label>Client Name:</label>
+                    <input type="text" id="clientName" data-required="true">
+                </div>
+            
+                <div>
+                    <label>Client Location:</label>
+                    <input type="text" id="clientLocation" data-required="true">
+                </div>
+            
+                <div>
+                    <label>Billing Months:</label>
+                    <input type="month" id="billingStart" onchange="updateBillingMonths()" data-required="true">
+                    <input type="month" id="billingEnd" onchange="updateBillingMonths()">
+                    <button type="button" onclick="clearBillingMonths()">Clear</button>
+                </div>
+            
+                <h4 style="margin-bottom: 4px; margin-top: 10px;">Pricing Details:</h4>
+            
+                <div>
+                    <label>Updation of E.P.F Record Online:</label>
+                    <input type="number" id="pricing0" placeholder="Enter amount">
+                </div>
+            
+                <div>
+                    <label>Updation of ESIC Record Online:</label>
+                    <input type="number" id="pricing1" placeholder="Enter amount">
+                </div>
+            
+                <div>
+                    <label>Stationery Charge / Postal Charge:</label>
+                    <input type="number" id="pricing2" placeholder="Enter amount">
+                </div>
+            
+                <div>
+                    <label>OTHERS:</label>
+                    <input type="number" id="pricing3" placeholder="Enter amount">
+                </div>
+            
+                <button type="submit">Generate Invoice</button>
+            </form>
+            
+            <div class="template-wrapper" id="download-template-wrapper">
+                <div class="align-button">
+                <button onclick="backToFormDetails()">Back</button>    
+                <button id="generateBill" onclick="downloadPDF()">Download as PDF</button>
+            </div>
+                <div class="invoice-container" id="download-template" >
+                    <div class="header" id="company-name">BHOOMIT PANCHOLI</div>
+                    <div class="sub-header" id="company-address">House No. - 7, Shastri Nagar, Khempura, Udaipur</div>
+                    <section class="separation"></section>
+                    <section class="invoice-date">
+                        <p>Date: <span id="invoice-date">01/10/2021</span></p>
+                    </section>
+                    <section class="invoice-header">
+                        <p>M/s <strong id="client-name">HOTEL MUMBAI HOUSE</strong></p>
+                        <p id="client-location">Udaipur</p>
+                    </section>
+                    <p>Dear Sir,</p>
+                    <section class="invoice-body" id="invoice-element">
+                        <table class="invoice-table">
+                            <tr>
+                                <td style="border-bottom: none !important;border-left: none !important;border-top: none !important;">1.</td>
+                                <td style="border-bottom: none !important;border-top: none !important;border-left: none !important; ">
+                                    <span class="highlight">Record of Maintenance Charges:</span>
+                                    <div class="sub-section">
+                                        <p class="sub-heading">Updation of E.P.F Record online</p>
+                                        <ul>
+                                            <li>&#x27A3; Preparation of ECR files for upload</li>
+                                            <li>&#x27A3; Monthly returns</li>
+                                            <li>&#x27A3; Online Registration</li>
+                                        </ul>
+                                    </div>
+                                    <div class="sub-section">
+                                        <p class="sub-heading">Updation of ESIC Record online</p>
+                                        <ul>
+                                            <li>&#x27A3; Preparation of ESIC monthly & half-yearly returns & challan</li>
+                                            <li>&#x27A3; Online Registration</li>
+                                            <li id="bilingMonths">(FOR THE MONTH OF SEP. 2021)</li>
+                                        </ul>
+                                    </div>
+                                    <div class="sub-section">
+                                        <p class="sub-heading">Stationery Charge / Postal Charge</p>
+                                    </div>
+                                    <div class="sub-section" style="margin-top: 80px;">
+                                        <p class="sub-heading">OTHERS</p>
+                                    </div>
+                                </td>
+                                <td class="section-amount" style="border:none!important;">
+                                    <p id="pricing-1">₹1,000/-</p>
+                                    <p id="pricing-2">₹1,500/-</p>
+                                    <p id="pricing-3">₹500/-</p>
+                                    <p id="pricing-4">₹500/-</p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="border-top: none !important;border-left: none !important;border-bottom: none !important;"></td>
+                                <td class="total"  style="border-top: none !important;border-left: none !important;border-bottom: none !important;border-right: none !important;">TOTAL</td>
+                                <td class="amount" id="total-amount" style="border-top: none !important;border-right: none !important;border-bottom: none !important;"><strong>₹4,500/-</strong></td>
+                            </tr>
+                        </table>
+                        <p class="amount-words" id="total-in-words">(Rupees Four Thousand Five Hundred Only)</p>
+                    </section>
+                    <div class="invoice-footer">
+                        <div>
+                        <p ><strong>Bank Details:</strong></p>
+                            <p id="bank-name">Federal Bank, Udaipur</p>
+                                <p id="bank-ac-no">A/C No: 15520100044536</p>
+                                    <p id="bank-ifsc-no">IFSC: FDRL0001552</p>
+                                        <p id="bank-pan-no">PAN: CLNPS1689H</p>
+                        </div>
+                        <div>
+                            <p class="signature">Yours faithfully,</p>
+                            <p class="signature" id="signature-name"><strong>BHOOMIT PANCHOLI</strong></p>
+                        </div>    
+                      
+                    </div>
+                </div>
+            </div>    
+        </div>
+       </div>
+      </div>
+    <footer>
+        <p>© 2025 Lovish Thada</p>
+    </footer>
+
+</body>
+<script src="./index.js"></script>
+</html>
