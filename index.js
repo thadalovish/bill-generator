@@ -58,8 +58,6 @@ function updateBillingMonths(startMonth, endMonth) {
     return displayText;
 }
 
-
-
 function clearBillingMonths() {
     document.getElementById("billingStart").value = "";
     document.getElementById("billingEnd").value = "";
@@ -190,6 +188,7 @@ function generateManualInvoiceDetailFromForm() {
             billingDateTo: document.getElementById("billingEnd").value.trim() || '',
         };
         window.mannualInvoiceData=invoiceData
+        console.log('invoiceData',invoiceData)
         generateInvoice(invoiceData); // Process invoice generation
 
         // Hide the form & show invoice preview
@@ -205,9 +204,6 @@ function backToFormDetails() {
     document.getElementById("invoiceForm").style.display = "block";
     document.getElementById("download-template-wrapper").style.display = "none";
 }
-
-
-
 
 function backToUploadExcel(){
     document.getElementById("uploadSection").style.display = "block";
@@ -280,6 +276,7 @@ function populateInvoiceTable(data) {
             const [month, year] = dateStr.split("/");
             return new Date(`${year}-${month.padStart(2, '0')}-01`);
         }
+        console.log("Received dateStr:", billingFromInput.value, "Type:", typeof billingFromInput.value);
         const fromDate = billingFromInput.value ? parseBillingDate(billingFromInput.value) : null;
         const toDate = billingToInput.value ? parseBillingDate(billingToInput.value) : null;
 
@@ -372,11 +369,28 @@ function populateInvoiceTable(data) {
             }
         });
         paginationContainer.appendChild(prevButton);
-
-        for (let i = 1; i <= totalPages; i++) {
-            addPageButton(i);
+    
+        // Logic to display page numbers dynamically
+        if (totalPages <= 5) {
+            // If pages are 5 or less, show all pages
+            for (let i = 1; i <= totalPages; i++) {
+                addPageButton(i);
+            }
+        } else {
+            addPageButton(1); // First page
+            
+            if (currentPage > 3) addEllipsis();
+    
+            for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+                addPageButton(i);
+            }
+    
+            if (currentPage < totalPages - 2) addEllipsis();
+    
+            addPageButton(totalPages); // Last page
         }
-
+    
+        // Create Next Button
         let nextButton = document.createElement("button");
         nextButton.innerText = "»";
         nextButton.classList.add("page-btn");
@@ -403,6 +417,14 @@ function populateInvoiceTable(data) {
         });
         paginationContainer.appendChild(pageButton);
     }
+
+    function addEllipsis() {
+        let ellipsis = document.createElement("span");
+        ellipsis.innerText = "...";
+        ellipsis.classList.add("ellipsis");
+        paginationContainer.appendChild(ellipsis);
+    }
+
 
     searchInput.addEventListener("input", applyFilters);
     billingFromInput.addEventListener("change", applyFilters);
