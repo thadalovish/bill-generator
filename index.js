@@ -275,7 +275,7 @@ function populateInvoiceTable(data) {
             if (!dateStr) return null;
             const [month, year] = dateStr.split("/");
             return new Date(`${year}-${month.padStart(2, '0')}-01`);
-        }
+        }    
         console.log("Received dateStr:", billingFromInput.value, "Type:", typeof billingFromInput.value);
         const fromDate = billingFromInput.value ? parseBillingDate(billingFromInput.value) : null;
         const toDate = billingToInput.value ? parseBillingDate(billingToInput.value) : null;
@@ -298,6 +298,12 @@ function populateInvoiceTable(data) {
         renderPagination();
     }
 
+    function excelSerialToDate(serial) {
+        let excelEpoch = new Date(1899, 11, 30); // Excel starts from 1899-12-30
+        let date = new Date(excelEpoch.getTime() + serial * 86400000); // Convert days to milliseconds
+        return date.toLocaleDateString("en-US"); // Format as MM/DD/YYYY
+    }
+    
     function renderTable(page) {
         tableBody.innerHTML = "";
         const totalRows = filteredData.length;
@@ -316,7 +322,7 @@ function populateInvoiceTable(data) {
                 <td class="custom-fixed-column">${filteredData[i][3] || "-"}</td>
                 <td class="custom-td">${filteredData[i][0] || "-"}</td>
                 <td class="custom-td">${filteredData[i][1] || "-"}</td>
-                <td class="custom-td">${filteredData[i][2] || "-"}</td>
+                <td class="custom-td">${excelSerialToDate(filteredData[i][2]) || "-"}</td>
                 <td class="custom-td">${filteredData[i][4] || "-"}</td>
                 <td class="custom-td">${filteredData[i][5] || "-"}</td>
                 <td class="custom-td">${filteredData[i][6] || "-"}</td>
@@ -333,12 +339,12 @@ function populateInvoiceTable(data) {
                     <span class="download-btn"><i class="fa-solid fa-download"></i></span>
                 </td>
             `;
-
+console.log("filteredData[i][2]",filteredData[i][2])
             row.querySelector(".download-btn").addEventListener("click", () => {
                 generateHiddenInvoicePDF({
                     companyName: filteredData[i][0],
                     companyAddress: filteredData[i][1],
-                    invoiceDate: filteredData[i][2],
+                    invoiceDate: excelSerialToDate(filteredData[i][2]),
                     client: { name: filteredData[i][3], location: filteredData[i][4] },
                     pricing: [filteredData[i][9], filteredData[i][10], filteredData[i][11], filteredData[i][12]],
                     bankDetails: { bankName: filteredData[i][5], bankAccountNo: filteredData[i][6], bankIfscCode: filteredData[i][7], bankPanNo: filteredData[i][8] },
