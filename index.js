@@ -257,6 +257,13 @@ function uploadExcel(event) {
     reader.readAsArrayBuffer(file);
 }
 
+
+function excelSerialToDate(serial) {
+    let excelEpoch = new Date(1899, 11, 30); // Excel starts from 1899-12-30
+    let date = new Date(excelEpoch.getTime() + serial * 86400000); // Convert days to milliseconds
+    return date.toLocaleDateString("en-US"); // Format as MM/DD/YYYY
+}
+
 function populateInvoiceTable(data) {
     const tableBody = document.getElementById("invoiceTableBody");
     const paginationContainer = document.getElementById("invoicePagination");
@@ -298,12 +305,7 @@ function populateInvoiceTable(data) {
         renderPagination();
     }
 
-    function excelSerialToDate(serial) {
-        let excelEpoch = new Date(1899, 11, 30); // Excel starts from 1899-12-30
-        let date = new Date(excelEpoch.getTime() + serial * 86400000); // Convert days to milliseconds
-        return date.toLocaleDateString("en-US"); // Format as MM/DD/YYYY
-    }
-    
+
     function renderTable(page) {
         tableBody.innerHTML = "";
         const totalRows = filteredData.length;
@@ -339,7 +341,7 @@ function populateInvoiceTable(data) {
                     <span class="download-btn"><i class="fa-solid fa-download"></i></span>
                 </td>
             `;
-console.log("filteredData[i][2]",filteredData[i][2])
+
             row.querySelector(".download-btn").addEventListener("click", () => {
                 generateHiddenInvoicePDF({
                     companyName: filteredData[i][0],
@@ -577,7 +579,7 @@ async function downloadAllInvoicesAsZip() {
                     const dataToSet = {
                         companyName: row[0],
                         companyAddress: row[1],
-                        invoiceDate: row[2],
+                        invoiceDate: excelSerialToDate(row[2]) ,
                         client: { name: row[3], location: row[4] },
                         pricing: [parseFloat(row[9]) || 0, parseFloat(row[10]) || 0, parseFloat(row[11]) || 0, parseFloat(row[12]) || 0],
                         bankDetails: { bankName: row[5], bankAccountNo: row[6], bankIfscCode: row[7], bankPanNo: row[8] },
