@@ -1,3 +1,57 @@
+function parseExcelDate(serial) {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    return new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
+}
+
+function updateBillingMonths(startMonth, endMonth) {
+    console.log("startMonth",startMonth,'endMonth',endMonth)
+    let startDate = parseExcelDate(startMonth);
+    let endDate = parseExcelDate(endMonth);
+
+    if (!startDate && !endDate) return "";
+
+    const formatMonthYear = (date) => {
+        return date.toLocaleString('default', { month: 'short', year: 'numeric' }).toUpperCase();
+    };
+
+    if (startDate && endDate) {
+        const startText = formatMonthYear(startDate);
+        const endText = formatMonthYear(endDate);
+
+        if (startText === endText) {
+            return `(FOR THE MONTH OF ${startText})`;
+        } else {
+            return `(FOR THE PERIOD OF ${startText} - ${endText})`;
+        }
+    } else if (startDate) {
+        const startText = formatMonthYear(startDate);
+        return `(FOR THE MONTH OF ${startText})`;
+    } else {
+        return "";
+    }
+}
+
+function monthYearToExcelSerial(monthYearStr) {
+    if (!monthYearStr) return null;
+
+    const [yearStr, monthStr] = monthYearStr.split("-");
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+
+    // Correct date: (month - 1)
+    const jsDate = new Date(year, month - 1, 1);
+
+    const excelEpoch = new Date(1899, 11, 30);
+    const diffInMs = jsDate.getTime() - excelEpoch.getTime();
+    let serial = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    // Adjust for Excel leap year bug
+    if (serial >= 61) {
+        serial += 1;
+    }
+
+    return serial;
+}
 
 function convertToExcelSerial(dateInput) {
     if (!dateInput) return null;
@@ -5,43 +59,24 @@ function convertToExcelSerial(dateInput) {
     let dateObj;
 
     if (typeof dateInput === 'string') {
-        // Handle 'YYYY-MM' format
         const [year, month] = dateInput.split('-');
-        dateObj = new Date(parseInt(year), parseInt(month) - 1, 1);
+        dateObj = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
     } else if (dateInput instanceof Date) {
         dateObj = dateInput;
     } else {
-        console.warn(`Unsupported date format: ${dateInput}`);
         return null;
     }
 
-    // Excel's epoch date: December 30, 1899
     const excelEpoch = new Date(1899, 11, 30);
-    const diffInMs = dateObj - excelEpoch;
-    const serialNumber = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    const diffInMs = dateObj.getTime() - excelEpoch.getTime();
+    let serialNumber = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    // Adjust for Excel leap year bug
+    if (serialNumber >= 61) {
+        serialNumber += 1;
+    }
 
     return serialNumber;
-}
-
-function monthYearToExcelSerial(monthYearStr) {
-    // Split the input string into year and month
-    const [yearStr, monthStr] = monthYearStr.split("-");
-    const year = parseInt(yearStr, 10);
-    const month = parseInt(monthStr, 10);
-
-    // Create a JavaScript Date object for the first day of the given month
-    const jsDate = new Date(year, month - 1, 1);
-
-    // Excel's epoch starts on 1899-12-30
-    const excelEpoch = new Date(1899, 11, 30);
-
-    // Calculate the difference in milliseconds
-    const diffInMs = jsDate - excelEpoch;
-
-    // Convert milliseconds to days
-    const serial = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-
-    return serial;
 }
 
 
@@ -70,62 +105,14 @@ function generateInvoice(data) {
     const serialFrom = convertToExcelSerial(data.billingDateFrom);
     const serialTo = convertToExcelSerial(data.billingDateTo);
     
-    document.getElementById("bilingMonths").textContent=`${updateBillingMonths(serialFrom),updateBillingMonths(serialTo)}`;
+    document.getElementById("bilingMonths").textContent=`${updateBillingMonths(serialFrom,serialTo)}`;
 
     const outputData = {
         ...data,
         billingDateFrom: monthYearToExcelSerial(data.billingDateFrom),
         billingDateTo: monthYearToExcelSerial(data.billingDateTo),
     };
-
-console.log("outputData",outputData)
     window.downloadPDFData = outputData
-}
-
-function updateBillingMonths(startMonth, endMonth) {
-    function parseExcelDate(input) {
-        if (!input) return null;
-
-        if (typeof input === "number") {
-            // Excel serial number to Date
-            const excelEpoch = new Date(1899, 11, 30);
-            excelEpoch.setDate(excelEpoch.getDate() + Math.floor(input));
-            return excelEpoch;
-        }
-
-        if (typeof input === "string" && input.includes("/")) {
-            // "MM/YYYY" string to Date
-            const [month, year] = input.split("/");
-            return new Date(`${year}-${month.padStart(2, '0')}-01`);
-        }
-
-        return null;
-    }
-
-    let startDate = parseExcelDate(startMonth);
-    let endDate = parseExcelDate(endMonth);
-
-    if (!startDate && !endDate) return "";
-
-    const formatMonthYear = (date) => {
-        return date.toLocaleString('default', { month: 'short', year: 'numeric' }).toUpperCase();
-    };
-
-    if (startDate && endDate) {
-        const startText = formatMonthYear(startDate);
-        const endText = formatMonthYear(endDate);
-
-        if (startText === endText) {
-            return `(FOR THE MONTH OF ${startText})`;
-        } else {
-            return `(FOR THE PERIOD OF ${startText} - ${endText})`;
-        }
-    } else if (startDate) {
-        const startText = formatMonthYear(startDate);
-        return `(FOR THE MONTH OF ${startText})`;
-    } else {
-        return "";
-    }
 }
 
 
@@ -180,7 +167,6 @@ function convertToWords(num) {
 }
 
 function downloadPDF() {
-    console.log("window.downloadPDFData",window.downloadPDFData)
     generateHiddenInvoicePDF(window.downloadPDFData)
 }
 
@@ -261,7 +247,6 @@ function generateManualInvoiceDetailFromForm() {
         };
 
         window.mannualInvoiceData=invoiceData
-        console.log('invoiceData',invoiceData)
         generateInvoice(invoiceData); // Process invoice generation
 
         // Hide the form & show invoice preview
@@ -315,7 +300,6 @@ function uploadExcel(event) {
         const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-        console.log("jsonData",jsonData)
         const newJsonData = jsonData.filter((item)=>item.length>0)
         if (newJsonData.length > 1) {
             document.getElementById("uploadSection").style.display = "none";
@@ -403,7 +387,6 @@ function populateInvoiceTable(data) {
         let end = Math.min(start + rowsPerPage, totalRows);
     
         for (let i = start; i < end; i++) {
-            console.log(filteredData[i])
             let row = document.createElement("tr");
             row.innerHTML = `
                 <td class="custom-fixed-column">${filteredData[i][0] || "-"}</td> <!-- Company Name -->
@@ -427,33 +410,6 @@ function populateInvoiceTable(data) {
                     <span class="download-btn"><i class="fa-solid fa-download"></i></span>
                 </td>
             `;
-    
-            console.log('generateHiddenInvoicePDF',{
-                companyName: filteredData[i][0],
-                companyAddress: filteredData[i][1],
-                bankDetails: {
-                    bankName: filteredData[i][2],
-                    bankAccountNo: filteredData[i][3],
-                    bankIfscCode: filteredData[i][4],
-                    bankPanNo: filteredData[i][5]
-                },
-                signature: filteredData[i][6],
-                invoiceDate: excelSerialToDate(filteredData[i][7]),
-                client: {
-                    name: filteredData[i][8],
-                    location: filteredData[i][9]
-                },
-                pricing: [
-                    parseFloat(filteredData[i][10]) || 0,
-                    parseFloat(filteredData[i][11]) || 0,
-                    parseFloat(filteredData[i][12]) || 0,
-                    parseFloat(filteredData[i][13]) || 0,
-                ],
-                totalCosting: filteredData[i][14],
-                billingDateFrom: filteredData[i][15],
-                billingDateTo: filteredData[i][16],
-            }
-            )
 
             row.querySelector(".download-btn").addEventListener("click", () => {
                 generateHiddenInvoicePDF({
@@ -704,23 +660,21 @@ async function downloadAllInvoicesAsZip() {
                 try {
                     const row = window.filteredData[i];
                     if (!row || row.length < 14) return;
-    
                     const dataToSet = {
                         companyName: row[0],
                         companyAddress: row[1],
-                        invoiceDate: excelSerialToDate(row[2]) ,
-                        client: { name: row[3], location: row[4] },
-                        pricing: [parseFloat(row[9]) || 0, parseFloat(row[10]) || 0, parseFloat(row[11]) || 0, parseFloat(row[12]) || 0],
-                        bankDetails: { bankName: row[5], bankAccountNo: row[6], bankIfscCode: row[7], bankPanNo: row[8] },
-                        signature: row[13],
-                        billingDateFrom:row[14],
-                        billingDateTo:row[15],
+                        invoiceDate: excelSerialToDate(row[7]) ,
+                        client: { name: row[8], location: row[9] },
+                        pricing: [parseFloat(row[10]) || 0, parseFloat(row[11]) || 0, parseFloat(row[12]) || 0, parseFloat(row[13]) || 0],
+                        bankDetails: { bankName: row[2], bankAccountNo: row[3], bankIfscCode: row[4], bankPanNo: row[5] },
+                        signature: row[6],
+                        billingDateFrom:row[15],
+                        billingDateTo:row[16],
                     };
 
                     const pdfBlob = await generateHiddenInvoicePDF(dataToSet, true);
     
                     if (!pdfBlob || !(pdfBlob instanceof Blob)) {
-                        console.error(`Invalid PDF Blob for: ${dataToSet.client.name}`, pdfBlob);
                         return;
                     }
     
@@ -743,11 +697,9 @@ async function downloadAllInvoicesAsZip() {
 
     async function processAllBatches() {
         for (let i = 0; i < totalRows; i += batchSize) {
-            console.log(`Processing batch: ${i} to ${Math.min(i + batchSize, totalRows)}`);
             await processBatch(i, Math.min(i + batchSize, totalRows));
     
             if ((i + batchSize) % flushThreshold === 0 || i + batchSize >= totalRows) {  
-                console.log("Flushing ZIP data...");
                 const partialZip = await zip.generateAsync({ type: "blob" });
 
                 saveAs(partialZip, `Invoices_Part_${++zipCount}.zip`);
@@ -766,13 +718,12 @@ async function downloadAllInvoicesAsZip() {
         }, 2000);
     }
 
-    setTimeout(processAllBatches, 0);
+     setTimeout(processAllBatches, 0);
 }
 
 // ✅ Ensure JSZip is Loaded Before Use
 async function loadJSZip() {
     if (typeof JSZip === "undefined") {
-        console.log("JSZip not found, loading dynamically...");
         await new Promise((resolve, reject) => {
             const script = document.createElement("script");
             script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
@@ -780,10 +731,8 @@ async function loadJSZip() {
             script.onerror = () => reject(new Error("Failed to load JSZip!"));
             document.head.appendChild(script);
         });
-        console.log("JSZip loaded successfully.");
-    } else {
-        console.log("JSZip is already loaded.");
-    }
+    } 
+
 }
 
 document.getElementById('downloadExcelBtn').addEventListener('click', function() {
