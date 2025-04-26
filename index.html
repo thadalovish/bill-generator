@@ -34,6 +34,7 @@
     <div class="page-content" style="width: 100%;">
         <div id="upload-excel-wrapper" class="tab-content active">
             <div class="custom-upload-section" id="uploadSection">
+                <button id="downloadExcelBtn" class="download-excel-link">Download Excel</button>
                 <h2 style="margin-bottom: 16px;">Upload Excel File</h2>
                 <input type="file" id="fileInput" accept=".xlsx, .xls" onchange="uploadExcel(event)">
             </div>
@@ -58,28 +59,30 @@
                 <div class="custom-table-wrapper">
                     <table class="custom-table" id="invoiceTable">
                         <thead>
-                            <tr id="invoiceTableHeader">
-                                <th class="custom-fixed-column">Client Name</th>
-                                <th class="custom-th">Company Name</th>
-                                <th class="custom-th">Company Address</th>
-                                <th class="custom-th">Invoice Date</th>
-                                <th class="custom-th">Client Location</th>
-                                <th class="custom-th">Bank Name</th>
-                                <th class="custom-th">Account No</th>
-                                <th class="custom-th">IFSC Code</th>
-                                <th class="custom-th">PAN No</th>
-                                <th class="custom-th">Updation of E.P.F Record online Cost</th>
-                                <th class="custom-th">Updation of ESIC Record online Cost</th>
-                                <th class="custom-th">Stationery Charge / Postal Charge</th>
-                                <th class="custom-th">OTHER Costing</th>
-                                <th class="custom-th">Signature</th>
-                                <th class="custom-th">Billing Date From</th>
-                                <th class="custom-th">Billing Date To</th>
-                                <th class="custom-action-column">Action</th>
-                            </tr>
+                          <tr id="invoiceTableHeader">
+                            <th class="custom-fixed-column">Company Name</th>
+                            <th class="custom-th">Company Address</th>
+                            <th class="custom-th">Bank Name</th>
+                            <th class="custom-th">Bank Account No</th>
+                            <th class="custom-th">Bank IFSC Code</th>
+                            <th class="custom-th">Bank PAN No</th>
+                            <th class="custom-th">Signature</th>
+                            <th class="custom-th">Invoice Date</th>
+                            <th class="custom-th">Client Name</th>
+                            <th class="custom-th">Client Location</th>
+                            <th class="custom-th">EPFO charges</th>
+                            <th class="custom-th">ESIC charges</th>
+                            <th class="custom-th">Postal charges</th>
+                            <th class="custom-th">Other charges</th>
+                            <th class="custom-th">Total Amount</th>
+                            <th class="custom-th">Billing Month start</th>
+                            <th class="custom-th">Billing Month end</th>
+                            <th class="custom-action-column">Action</th>
+                          </tr>
                         </thead>
                         <tbody id="invoiceTableBody"></tbody>
-                    </table>
+                      </table>
+                      
                 </div>
                 <div class="custom-pagination" id="invoicePagination"></div>
             </div>
@@ -112,7 +115,7 @@
             
                 <div>
                     <label>Bank Account No:</label>
-                    <input type="text" id="bankAccountNo" value="15520100044536" data-required="true" disabled>
+                    <input type="text" id="bankAccountNo" value="15520200004380" data-required="true" disabled>
                 </div>
             
                 <div>

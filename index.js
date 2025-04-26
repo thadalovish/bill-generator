@@ -1,4 +1,50 @@
 
+function convertToExcelSerial(dateInput) {
+    if (!dateInput) return null;
+
+    let dateObj;
+
+    if (typeof dateInput === 'string') {
+        // Handle 'YYYY-MM' format
+        const [year, month] = dateInput.split('-');
+        dateObj = new Date(parseInt(year), parseInt(month) - 1, 1);
+    } else if (dateInput instanceof Date) {
+        dateObj = dateInput;
+    } else {
+        console.warn(`Unsupported date format: ${dateInput}`);
+        return null;
+    }
+
+    // Excel's epoch date: December 30, 1899
+    const excelEpoch = new Date(1899, 11, 30);
+    const diffInMs = dateObj - excelEpoch;
+    const serialNumber = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    return serialNumber;
+}
+
+function monthYearToExcelSerial(monthYearStr) {
+    // Split the input string into year and month
+    const [yearStr, monthStr] = monthYearStr.split("-");
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+
+    // Create a JavaScript Date object for the first day of the given month
+    const jsDate = new Date(year, month - 1, 1);
+
+    // Excel's epoch starts on 1899-12-30
+    const excelEpoch = new Date(1899, 11, 30);
+
+    // Calculate the difference in milliseconds
+    const diffInMs = jsDate - excelEpoch;
+
+    // Convert milliseconds to days
+    const serial = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    return serial;
+}
+
+
 function generateInvoice(data) {
     let total = data.pricing.reduce((acc, i) => acc + i, 0);
 
@@ -21,42 +67,67 @@ function generateInvoice(data) {
         if (priceElement) priceElement.textContent = `₹${amount}/-`;
     });
 
-    document.getElementById("bilingMonths").textContent=`${updateBillingMonths(data.billingDateFrom,data.billingDateTo)}`;
+    const serialFrom = convertToExcelSerial(data.billingDateFrom);
+    const serialTo = convertToExcelSerial(data.billingDateTo);
+    
+    document.getElementById("bilingMonths").textContent=`${updateBillingMonths(serialFrom),updateBillingMonths(serialTo)}`;
+
+    const outputData = {
+        ...data,
+        billingDateFrom: monthYearToExcelSerial(data.billingDateFrom),
+        billingDateTo: monthYearToExcelSerial(data.billingDateTo),
+    };
+
+console.log("outputData",outputData)
+    window.downloadPDFData = outputData
 }
 
 function updateBillingMonths(startMonth, endMonth) {
-    let displayText = '';
-    function formatMonthYear(input) {
+    function parseExcelDate(input) {
         if (!input) return null;
-        let [month, year] = input.split("/");
-        return `${year}-${month.padStart(2, '0')}`; // Convert to YYYY-MM format
-    }
 
-    let formattedStart = formatMonthYear(startMonth);
-    let formattedEnd = formatMonthYear(endMonth);
-
-    if (formattedStart && formattedEnd) {
-        let startDate = new Date(formattedStart + "-01");
-        let endDate = new Date(formattedEnd + "-01");
-
-        let startText = startDate.toLocaleString('default', { month: 'short', year: 'numeric' }).toUpperCase();
-        let endText = endDate.toLocaleString('default', { month: 'short', year: 'numeric' }).toUpperCase();
-
-        // ✅ If start and end dates are the same, show "FOR THE MONTH OF..."
-        if (formattedStart === formattedEnd) {
-            displayText = `(FOR THE MONTH OF ${startText})`;
-        } else {
-            displayText = `(FOR THE PERIOD OF ${startText} - ${endText})`;
+        if (typeof input === "number") {
+            // Excel serial number to Date
+            const excelEpoch = new Date(1899, 11, 30);
+            excelEpoch.setDate(excelEpoch.getDate() + Math.floor(input));
+            return excelEpoch;
         }
-    } else if (formattedStart) {
-        let startDate = new Date(formattedStart + "-01");
-        let startText = startDate.toLocaleString('default', { month: 'short', year: 'numeric' }).toUpperCase();
 
-        displayText = `(FOR THE MONTH OF ${startText})`;
+        if (typeof input === "string" && input.includes("/")) {
+            // "MM/YYYY" string to Date
+            const [month, year] = input.split("/");
+            return new Date(`${year}-${month.padStart(2, '0')}-01`);
+        }
+
+        return null;
     }
 
-    return displayText;
+    let startDate = parseExcelDate(startMonth);
+    let endDate = parseExcelDate(endMonth);
+
+    if (!startDate && !endDate) return "";
+
+    const formatMonthYear = (date) => {
+        return date.toLocaleString('default', { month: 'short', year: 'numeric' }).toUpperCase();
+    };
+
+    if (startDate && endDate) {
+        const startText = formatMonthYear(startDate);
+        const endText = formatMonthYear(endDate);
+
+        if (startText === endText) {
+            return `(FOR THE MONTH OF ${startText})`;
+        } else {
+            return `(FOR THE PERIOD OF ${startText} - ${endText})`;
+        }
+    } else if (startDate) {
+        const startText = formatMonthYear(startDate);
+        return `(FOR THE MONTH OF ${startText})`;
+    } else {
+        return "";
+    }
 }
+
 
 function clearBillingMonths() {
     document.getElementById("billingStart").value = "";
@@ -71,7 +142,7 @@ function convertToWords(num) {
     const tens = ["", "Ten", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
     const thousands = ["", "Thousand", "Lakh", "Crore"];
 
-    if (num === 0) return "Zero Rupees Only";
+    if (num === 0) return "Zero";
 
     let words = "";
 
@@ -109,7 +180,8 @@ function convertToWords(num) {
 }
 
 function downloadPDF() {
-    generateHiddenInvoicePDF(window.mannualInvoiceData)
+    console.log("window.downloadPDFData",window.downloadPDFData)
+    generateHiddenInvoicePDF(window.downloadPDFData)
 }
 
 
@@ -187,6 +259,7 @@ function generateManualInvoiceDetailFromForm() {
             billingDateFrom: document.getElementById("billingStart").value.trim() || '',
             billingDateTo: document.getElementById("billingEnd").value.trim() || '',
         };
+
         window.mannualInvoiceData=invoiceData
         console.log('invoiceData',invoiceData)
         generateInvoice(invoiceData); // Process invoice generation
@@ -242,7 +315,7 @@ function uploadExcel(event) {
         const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
+        console.log("jsonData",jsonData)
         const newJsonData = jsonData.filter((item)=>item.length>0)
         if (newJsonData.length > 1) {
             document.getElementById("uploadSection").style.display = "none";
@@ -277,88 +350,144 @@ function populateInvoiceTable(data) {
 
     function applyFilters() {
         const searchValue = searchInput.value.trim().toLowerCase();
-
+        
         function parseBillingDate(dateStr) {
             if (!dateStr) return null;
-            const [month, year] = dateStr.split("/");
-            return new Date(`${year}-${month.padStart(2, '0')}-01`);
-        }    
-        console.log("Received dateStr:", billingFromInput.value, "Type:", typeof billingFromInput.value);
+            if (typeof dateStr === "number") {
+                const excelEpoch = new Date(1899, 11, 30);
+                const days = Math.floor(dateStr);
+                excelEpoch.setDate(excelEpoch.getDate() + days);
+                return excelEpoch;
+            }
+            if (typeof dateStr === "string") {
+                const [month, year] = dateStr.split("/");
+                if (!month || !year) return null;
+                return new Date(`${year}-${month.padStart(2, '0')}-01`);
+            }
+            return null;
+        }
+          
         const fromDate = billingFromInput.value ? parseBillingDate(billingFromInput.value) : null;
         const toDate = billingToInput.value ? parseBillingDate(billingToInput.value) : null;
-
+    
         filteredData = data.filter((row, index) => {
-            if (index === 0) return false; // Skip header row
-
-            const client = (row[3] || "").toLowerCase();
-            const rowFromDate = parseBillingDate(row[14]); // Billing Date From column
-            const rowToDate = parseBillingDate(row[15]); // Billing Date To column
-
-            const matchesSearch = !searchValue || client.includes(searchValue);
+            if (index === 0) return false;
+    
+            const clientName = (row[8] || "").toLowerCase(); // Client Name
+            const rowFromDate = parseBillingDate(row[15]); // Billing Month Start
+            const rowToDate = parseBillingDate(row[16]); // Billing Month End
+    
+            const matchesSearch = !searchValue || clientName.includes(searchValue);
             const matchesFromDate = !fromDate || !rowFromDate || rowFromDate >= fromDate;
             const matchesToDate = !toDate || !rowToDate || rowToDate <= toDate;
-
+    
             return matchesSearch && matchesFromDate && matchesToDate;
         });
-        currentPage = 1; // Reset to first page after filtering
+        
+        currentPage = 1;
         renderTable(currentPage);
         renderPagination();
     }
-
+    
 
     function renderTable(page) {
         tableBody.innerHTML = "";
         const totalRows = filteredData.length;
         if (totalRows === 0) {
-            tableBody.innerHTML = "<tr><td colspan='15'>No data found</td></tr>";
-            paginationContainer.innerHTML = ""; // Clear pagination if no data
+            tableBody.innerHTML = "<tr><td colspan='18'>No data found</td></tr>";
+            paginationContainer.innerHTML = ""; 
             return;
         }
-
+    
         let start = (page - 1) * rowsPerPage;
         let end = Math.min(start + rowsPerPage, totalRows);
-
+    
         for (let i = start; i < end; i++) {
+            console.log(filteredData[i])
             let row = document.createElement("tr");
             row.innerHTML = `
-                <td class="custom-fixed-column">${filteredData[i][3] || "-"}</td>
-                <td class="custom-td">${filteredData[i][0] || "-"}</td>
-                <td class="custom-td">${filteredData[i][1] || "-"}</td>
-                <td class="custom-td">${excelSerialToDate(filteredData[i][2]) || "-"}</td>
-                <td class="custom-td">${filteredData[i][4] || "-"}</td>
-                <td class="custom-td">${filteredData[i][5] || "-"}</td>
-                <td class="custom-td">${filteredData[i][6] || "-"}</td>
-                <td class="custom-td">${filteredData[i][7] || "-"}</td>
-                <td class="custom-td">${filteredData[i][8] || "-"}</td>
-                <td class="custom-td">${filteredData[i][9] || "-"}</td>
-                <td class="custom-td">${filteredData[i][10] || "-"}</td>
-                <td class="custom-td">${filteredData[i][11] || "-"}</td>
-                <td class="custom-td">${filteredData[i][12] || "-"}</td>
-                <td class="custom-td">${filteredData[i][13] || "-"}</td>
-                <td class="custom-td">${filteredData[i][14] || "-"}</td>
-                <td class="custom-td">${filteredData[i][15] || "-"}</td>
+                <td class="custom-fixed-column">${filteredData[i][0] || "-"}</td> <!-- Company Name -->
+                <td class="custom-th">${filteredData[i][1] || "-"}</td> <!-- Company Address -->
+                <td class="custom-th">${filteredData[i][2] || "-"}</td> <!-- Bank Name -->
+                <td class="custom-th">${filteredData[i][3] || "-"}</td> <!-- Bank Account No -->
+                <td class="custom-th">${filteredData[i][4] || "-"}</td> <!-- Bank IFSC Code -->
+                <td class="custom-th">${filteredData[i][5] || "-"}</td> <!-- Bank PAN No -->
+                <td class="custom-th">${filteredData[i][6] || "-"}</td> <!-- Signature -->
+                <td class="custom-th">${excelSerialToDate(filteredData[i][7]) || "-"}</td> <!-- Invoice Date -->
+                <td class="custom-th">${filteredData[i][8] || "-"}</td> <!-- Client Name -->
+                <td class="custom-th">${filteredData[i][9] || "-"}</td> <!-- Client Location -->
+                <td class="custom-th">${filteredData[i][10] || "-"}</td> <!-- EPFO charges -->
+                <td class="custom-th">${filteredData[i][11] || "-"}</td> <!-- ESIC charges -->
+                <td class="custom-th">${filteredData[i][12] || "-"}</td> <!-- Postal charges -->
+                <td class="custom-th">${filteredData[i][13] || "-"}</td> <!-- Other charges -->
+                <td class="custom-th">${filteredData[i][14] || "-"}</td> <!-- Total Amount -->
+                <td class="custom-th">${excelSerialToDate(filteredData[i][15]) || "-"}</td> <!-- Billing Month start -->
+                <td class="custom-th">${excelSerialToDate(filteredData[i][16]) || "-"}</td> <!-- Billing Month end -->
                 <td class="custom-action-column">
                     <span class="download-btn"><i class="fa-solid fa-download"></i></span>
                 </td>
             `;
+    
+            console.log('generateHiddenInvoicePDF',{
+                companyName: filteredData[i][0],
+                companyAddress: filteredData[i][1],
+                bankDetails: {
+                    bankName: filteredData[i][2],
+                    bankAccountNo: filteredData[i][3],
+                    bankIfscCode: filteredData[i][4],
+                    bankPanNo: filteredData[i][5]
+                },
+                signature: filteredData[i][6],
+                invoiceDate: excelSerialToDate(filteredData[i][7]),
+                client: {
+                    name: filteredData[i][8],
+                    location: filteredData[i][9]
+                },
+                pricing: [
+                    parseFloat(filteredData[i][10]) || 0,
+                    parseFloat(filteredData[i][11]) || 0,
+                    parseFloat(filteredData[i][12]) || 0,
+                    parseFloat(filteredData[i][13]) || 0,
+                ],
+                totalCosting: filteredData[i][14],
+                billingDateFrom: filteredData[i][15],
+                billingDateTo: filteredData[i][16],
+            }
+            )
 
             row.querySelector(".download-btn").addEventListener("click", () => {
                 generateHiddenInvoicePDF({
                     companyName: filteredData[i][0],
                     companyAddress: filteredData[i][1],
-                    invoiceDate: excelSerialToDate(filteredData[i][2]),
-                    client: { name: filteredData[i][3], location: filteredData[i][4] },
-                    pricing: [filteredData[i][9], filteredData[i][10], filteredData[i][11], filteredData[i][12]],
-                    bankDetails: { bankName: filteredData[i][5], bankAccountNo: filteredData[i][6], bankIfscCode: filteredData[i][7], bankPanNo: filteredData[i][8] },
-                    signature: filteredData[i][13],
-                    billingDateFrom: filteredData[i][14],
-                    billingDateTo: filteredData[i][15],
+                    bankDetails: {
+                        bankName: filteredData[i][2],
+                        bankAccountNo: filteredData[i][3],
+                        bankIfscCode: filteredData[i][4],
+                        bankPanNo: filteredData[i][5]
+                    },
+                    signature: filteredData[i][6],
+                    invoiceDate: excelSerialToDate(filteredData[i][7]),
+                    client: {
+                        name: filteredData[i][8],
+                        location: filteredData[i][9]
+                    },
+                    pricing: [
+                        parseFloat(filteredData[i][10]) || 0,
+                        parseFloat(filteredData[i][11]) || 0,
+                        parseFloat(filteredData[i][12]) || 0,
+                        parseFloat(filteredData[i][13]) || 0,
+                    ],
+                    totalCosting: filteredData[i][14],
+                    billingDateFrom: filteredData[i][15],
+                    billingDateTo: filteredData[i][16],
                 });
             });
-
+    
             tableBody.appendChild(row);
         }
     }
+    
+    
 
     function renderPagination() {
         paginationContainer.innerHTML = "";
@@ -656,3 +785,12 @@ async function loadJSZip() {
         console.log("JSZip is already loaded.");
     }
 }
+
+document.getElementById('downloadExcelBtn').addEventListener('click', function() {
+    const link = document.createElement('a');
+    link.href = 'files/CopyBillGeneratorSheet.xlsx'; // path to your file
+    link.download = 'dummyBillGenerator.xlsx';   // suggested file name
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+});
