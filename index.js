@@ -300,7 +300,10 @@ function uploadExcel(event) {
         const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-        const newJsonData = jsonData.filter((item)=>item.length>0)
+   // Filter: remove rows where all cells are empty
+   const newJsonData = jsonData.filter(row => 
+    row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== "")
+);
         if (newJsonData.length > 1) {
             document.getElementById("uploadSection").style.display = "none";
             document.getElementById("tableContainer").style.display = "block";
