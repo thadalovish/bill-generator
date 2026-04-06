@@ -166,8 +166,19 @@ function convertToWords(num) {
     return words.trim();
 }
 
+let isDownloadingSinglePdf = false;
 function downloadPDF() {
-    generateHiddenInvoicePDF(window.downloadPDFData)
+    if (isDownloadingSinglePdf) return;
+    isDownloadingSinglePdf = true;
+
+    const btn = document.getElementById("generateBill");
+    if (btn) btn.disabled = true;
+
+    Promise.resolve(generateHiddenInvoicePDF(window.downloadPDFData))
+        .finally(() => {
+            isDownloadingSinglePdf = false;
+            if (btn) btn.disabled = false;
+        });
 }
 
 
@@ -582,9 +593,9 @@ function generateHiddenInvoicePDF(data, isBatchMode = false) {
             safeUpdate("#total-amount", `₹${total}/-`);
             safeUpdate("#total-in-words", `(Rupees ${convertToWords(total)} Only)`);
 
-            // ** Ensure A4 fit **
-            invoice.style.transform = "scale(0.85)";
-            invoice.style.transformOrigin = "top left";
+            // Render at native CSS size; let html2canvas control resolution (avoids blur).
+            invoice.style.transform = "";
+            invoice.style.transformOrigin = "";
             invoice.style.width = "210mm";
             invoice.style.height = "auto";
 
@@ -594,12 +605,22 @@ function generateHiddenInvoicePDF(data, isBatchMode = false) {
                 table.style.width = "100%";
             }
 
+            const dpr = window.devicePixelRatio || 1;
+            // Keep output crisp but avoid huge PDFs:
+            // - cap scale to reduce bitmap size
+            // - export as JPEG (smaller than PNG for photos/screenshot-like content)
+            const canvasScale = Math.min(2, Math.max(1.5, dpr));
             html2canvas(invoice, { 
-                scale: 1.5,  // Decrease scale to reduce resolution
+                scale: canvasScale,
                 backgroundColor: null, 
-            }).then((canvas) => {
-                const imgData = canvas.toDataURL("image/png");
-                const pdf = new jsPDF("p", "mm", "a4");
+                useCORS: true,
+                allowTaint: false,
+                logging: false,
+            })
+            .then((canvas) => {
+                // JPEG dramatically reduces PDF size vs PNG for this use-case.
+                const imgData = canvas.toDataURL("image/jpeg", 0.82);
+                const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
                 const pageWidth = 210;
                 const pageHeight = 297;
             
@@ -610,7 +631,7 @@ function generateHiddenInvoicePDF(data, isBatchMode = false) {
                     imgHeight = pageHeight;
                 }
             
-                pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+                pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
                 if (isBatchMode) {
                     resolve(pdf.output("blob"));
                 } else {
@@ -619,6 +640,16 @@ function generateHiddenInvoicePDF(data, isBatchMode = false) {
                 }
             
                 document.body.removeChild(hiddenDiv);
+            })
+            .catch((err) => {
+                console.error("PDF render failed (canvas taint / file:// origin).", err);
+                try {
+                    alert(
+                        "Download failed due to browser security.\n\nFix: open this app via http://localhost (not file://).\nExample: from the project folder run:\n\npython3 -m http.server 5173\n\nThen open: http://localhost:5173/"
+                    );
+                } catch (_) {}
+                document.body.removeChild(hiddenDiv);
+                resolve(null);
             });
             
         }, 300);
@@ -746,3 +777,73 @@ document.getElementById('downloadExcelBtn').addEventListener('click', function()
     link.click();
     document.body.removeChild(link);
 });
+
+function init() {
+    if (window.location && window.location.protocol === "file:") {
+        console.warn(
+            "Opened via file://. Canvas/PDF export may fail due to browser security. Use a local server (http://localhost) instead."
+        );
+    }
+    // Tabs
+    document.querySelectorAll(".tabs .tab[data-tab-target]").forEach((btn) => {
+        btn.addEventListener("click", (event) => {
+            const tabId = btn.getAttribute("data-tab-target");
+            if (tabId) openTab(tabId, event);
+        });
+    });
+
+    // Upload Excel input
+    const fileInputEl = document.getElementById("fileInput");
+    if (fileInputEl) fileInputEl.addEventListener("change", uploadExcel);
+
+    // Back to upload button
+    const backToUploadBtn = document.getElementById("backToUploadExcelBtn");
+    if (backToUploadBtn) backToUploadBtn.addEventListener("click", backToUploadExcel);
+
+    // Download all
+    const downloadAllBtn = document.getElementById("downloadAllBtn");
+    if (downloadAllBtn) downloadAllBtn.addEventListener("click", downloadAllInvoicesAsZip);
+
+    // Enable editing radios
+    document.querySelectorAll("input[name='enableCompany']").forEach((radio) => {
+        radio.addEventListener("change", () => toggleCompanyFields(radio.value === "yes"));
+    });
+
+    // Billing months clear
+    const clearBillingMonthsBtn = document.getElementById("clearBillingMonthsBtn");
+    if (clearBillingMonthsBtn) clearBillingMonthsBtn.addEventListener("click", clearBillingMonths);
+
+    // Back to form details
+    const backToFormDetailsBtn = document.getElementById("backToFormDetailsBtn");
+    if (backToFormDetailsBtn) backToFormDetailsBtn.addEventListener("click", backToFormDetails);
+
+    // Download PDF
+    const generateBillBtn = document.getElementById("generateBill");
+    if (generateBillBtn) generateBillBtn.addEventListener("click", downloadPDF);
+
+    // Populate client name datalist
+    const datalist = document.getElementById("clientNameOptions");
+    if (datalist) {
+        const names = Array.isArray(window.CLIENT_NAMES) ? window.CLIENT_NAMES : [];
+        const unique = Array.from(
+            new Set(
+                names
+                    .map((n) => (typeof n === "string" ? n.trim() : ""))
+                    .filter(Boolean)
+            )
+        ).sort((a, b) => a.localeCompare(b));
+
+        datalist.innerHTML = "";
+        unique.forEach((name) => {
+            const opt = document.createElement("option");
+            opt.value = name;
+            datalist.appendChild(opt);
+        });
+    }
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+} else {
+    init();
+}
